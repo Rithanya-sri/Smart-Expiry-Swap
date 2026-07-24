@@ -1,11 +1,3 @@
-<div align="center">
-
-<img src="https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js" />
-<img src="https://img.shields.io/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript" />
-<img src="https://img.shields.io/badge/Tailwind_CSS-3-38bdf8?style=for-the-badge&logo=tailwindcss" />
-<img src="https://img.shields.io/badge/AI_Powered-Decision_Engine-10b981?style=for-the-badge&logo=openai" />
-<img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge" />
-
 # 🌿 Smart Expiry Swap
 ### *AI-Powered Retail Decision Intelligence Platform*
 
@@ -26,9 +18,9 @@
 | 🛠️ Developer | **Sridharan K** | — |
 | 🎨 Designer | **Vasanth Kumar S** | — |
 
-**Institution:** *(Your College Name)*  
-**Department:** *(Your Department)*  
-**Event / Hackathon:** *(Event Name, Year)*
+**Institution:** *(Dr.N.G.P Institue Of Technologyy)*  
+**Department:** *(Information Technology)*  
+**Event / Hackathon:** *(Hackathon)*
 
 ---
 
@@ -54,7 +46,7 @@
 
 ## 🔴 Problem Statement
 
-> *"Good morning, judges. Our project addresses a major problem faced by supermarkets worldwide."*
+> *"Our project addresses a major problem faced by supermarkets worldwide."*
 
 Retailers lose significant revenue not just because products expire, but due to **poor inventory decisions**. Existing inventory systems only track stock levels and expiry dates — they don't provide intelligent recommendations on what action maximizes product value.
 
