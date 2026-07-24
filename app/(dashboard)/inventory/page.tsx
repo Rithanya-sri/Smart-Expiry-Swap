@@ -8,10 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { DispatchModal } from "@/components/dashboard/ngo-dispatch-modal";
+import { RecoveryDrawer } from "@/components/dashboard/RecoveryDrawer";
 import { MOCK_INVENTORY } from "@/lib/mock-data";
 import { InventoryItem } from "@/types";
+import { AIRecommendation, getProductRecommendation } from "@/lib/recovery-engine";
 import { getExpiryStatus } from "@/lib/utils";
-import { Search, Plus, Truck, CheckCircle2, RefreshCw } from "lucide-react";
+import { Search, Plus, Truck, CheckCircle2, RefreshCw, Brain } from "lucide-react";
 
 export default function InventoryPage() {
   const [items, setItems] = React.useState<InventoryItem[]>(MOCK_INVENTORY);
@@ -20,18 +22,67 @@ export default function InventoryPage() {
   const [activeTab, setActiveTab] = React.useState("all");
   const [dispatchTarget, setDispatchTarget] = React.useState<InventoryItem | null>(null);
 
+  // AI Recovery Drawer state
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
+  const [drawerProduct, setDrawerProduct] = React.useState<InventoryItem | null>(null);
+  const [drawerResult, setDrawerResult] = React.useState<AIRecommendation | null>(null);
+  const [drawerLoading, setDrawerLoading] = React.useState(false);
+  const [drawerError, setDrawerError] = React.useState<string | null>(null);
+
   const filtered = items.filter((item) => {
     const q = search.toLowerCase();
     const matchSearch = item.name.toLowerCase().includes(q) || item.sku.toLowerCase().includes(q);
     const matchCat = category === "All" || item.category === category;
-    if (activeTab === "critical") return matchSearch && matchCat && item.status === "critical" && !item.isDispatched;
+    if (activeTab === "critical")   return matchSearch && matchCat && item.status === "critical" && !item.isDispatched;
     if (activeTab === "dispatched") return matchSearch && matchCat && item.isDispatched;
-    if (activeTab === "safe") return matchSearch && matchCat && item.status === "safe";
+    if (activeTab === "safe")       return matchSearch && matchCat && item.status === "safe";
     return matchSearch && matchCat;
   });
 
   const handleDispatch = (itemId: string, ngoName: string) => {
     setItems((prev) => prev.map((i) => i.id === itemId ? { ...i, isDispatched: true, rescuedByNGO: ngoName } : i));
+  };
+
+  /** Opens the drawer and runs the rule-based engine immediately (no async needed). */
+  const handleOpenRecovery = (item: InventoryItem) => {
+    setDrawerProduct(item);
+    setDrawerResult(null);
+    setDrawerError(null);
+    setDrawerLoading(true);
+    setDrawerOpen(true);
+
+    // Simulate a brief processing delay for UX polish
+    setTimeout(() => {
+      try {
+        const result = getProductRecommendation({
+          name: item.name,
+          category: item.category,
+          stock: item.quantity,
+          price: item.unitPrice,
+          expiryDate: item.expiryDate,
+          status: item.status,
+        });
+        setDrawerResult(result);
+      } catch (e: any) {
+        setDrawerError(e.message || "Failed to generate recommendation.");
+      } finally {
+        setDrawerLoading(false);
+      }
+    }, 600);
+  };
+
+  const handleCloseDrawer = () => {
+    setDrawerOpen(false);
+    // Delay clearing so the close animation plays
+    setTimeout(() => {
+      setDrawerProduct(null);
+      setDrawerResult(null);
+      setDrawerError(null);
+    }, 300);
+  };
+
+  const handleRetry = () => {
+    if (drawerProduct) handleOpenRecovery(drawerProduct);
   };
 
   return (
@@ -69,12 +120,12 @@ export default function InventoryPage() {
           onChange={(e) => setSearch(e.target.value)} icon={<Search className="h-3.5 w-3.5" />} className="max-w-xs" />
         <Select value={category} onChange={(e) => setCategory(e.target.value)} className="max-w-xs"
           options={[
-            { label: "All Categories", value: "All" },
-            { label: "Dairy & Eggs", value: "Dairy & Eggs" },
-            { label: "Fresh Produce", value: "Fresh Produce" },
-            { label: "Bakery & Deli", value: "Bakery & Deli" },
-            { label: "Meat & Seafood", value: "Meat & Seafood" },
-            { label: "Pantry & Canned", value: "Pantry & Canned" },
+            { label: "All Categories",    value: "All" },
+            { label: "Dairy & Eggs",      value: "Dairy & Eggs" },
+            { label: "Fresh Produce",     value: "Fresh Produce" },
+            { label: "Bakery & Deli",     value: "Bakery & Deli" },
+            { label: "Meat & Seafood",    value: "Meat & Seafood" },
+            { label: "Pantry & Canned",   value: "Pantry & Canned" },
           ]}
         />
         <span className="text-xs text-slate-500 self-center ml-auto">
@@ -119,15 +170,26 @@ export default function InventoryPage() {
                       </td>
                       <td className="py-3.5 px-4 text-slate-500 text-[11px]">{item.location}</td>
                       <td className="py-3.5 px-5 text-right">
-                        {item.isDispatched ? (
-                          <span className="flex items-center justify-end gap-1 text-[11px] text-emerald-400">
-                            <CheckCircle2 className="h-3.5 w-3.5" /> Dispatched
-                          </span>
-                        ) : (
-                          <Button variant="primary" size="sm" onClick={() => setDispatchTarget(item)}>
-                            <Truck className="h-3.5 w-3.5" /> Dispatch
-                          </Button>
-                        )}
+                        <div className="flex items-center justify-end gap-2">
+                          {item.isDispatched ? (
+                            <span className="flex items-center gap-1 text-[11px] text-emerald-400">
+                              <CheckCircle2 className="h-3.5 w-3.5" /> Dispatched
+                            </span>
+                          ) : (
+                            <Button variant="primary" size="sm" onClick={() => setDispatchTarget(item)}>
+                              <Truck className="h-3.5 w-3.5" /> Dispatch
+                            </Button>
+                          )}
+                          {/* AI Recovery Button */}
+                          <button
+                            onClick={() => handleOpenRecovery(item)}
+                            title="AI Recovery Recommendation"
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-violet-400 bg-violet-900/20 border border-violet-800/40 hover:bg-violet-900/40 hover:border-violet-700/60 transition-all"
+                          >
+                            <Brain className="h-3.5 w-3.5" />
+                            AI Recovery
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -138,8 +200,20 @@ export default function InventoryPage() {
         </CardContent>
       </Card>
 
+      {/* Existing Dispatch Modal — unchanged */}
       <DispatchModal item={dispatchTarget} isOpen={!!dispatchTarget}
         onClose={() => setDispatchTarget(null)} onSuccess={handleDispatch} />
+
+      {/* AI Recovery Side Drawer */}
+      <RecoveryDrawer
+        productName={drawerProduct?.name ?? ""}
+        isOpen={drawerOpen}
+        onClose={handleCloseDrawer}
+        recommendation={drawerResult}
+        isLoading={drawerLoading}
+        error={drawerError}
+        onRetry={handleRetry}
+      />
     </div>
   );
 }
