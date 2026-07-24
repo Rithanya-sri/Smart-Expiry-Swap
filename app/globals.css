@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 7%;
+    --foreground: 220 15% 95%;
+
+    --card: 220 18% 10%;
+    --card-foreground: 220 15% 95%;
+
+    --border: 220 15% 17%;
+    --input: 220 15% 14%;
+    --ring: 160 60% 45%;
+
+    --primary: 160 60% 45%;
+    --primary-foreground: 160 100% 98%;
+
+    --secondary: 220 15% 14%;
+    --secondary-foreground: 220 15% 85%;
+
+    --muted: 220 15% 14%;
+    --muted-foreground: 220 10% 55%;
+
+    --accent: 220 15% 16%;
+    --accent-foreground: 220 15% 90%;
+
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --radius: 0.625rem;
+  }
+}
+
+@layer base {
+  * { @apply border-border box-border; }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+  *,*::before,*::after { box-sizing: border-box; }
+}
+
+/* Subtle scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: hsl(220 18% 10%); }
+::-webkit-scrollbar-thumb { background: hsl(220 15% 22%); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(160 60% 35%); }
