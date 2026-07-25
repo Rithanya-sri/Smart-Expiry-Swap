@@ -4,17 +4,21 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, PackageSearch, Users, HeartHandshake,
-  BarChart3, Leaf, ArrowUpRight, LogOut,
+  BarChart3, Leaf, ArrowUpRight, LogOut, Brain, Bell, Settings, ClipboardList, FileText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 
 const NAV = [
-  { name: "Dashboard",    href: "/",          icon: LayoutDashboard },
-  { name: "Inventory",    href: "/inventory",  icon: PackageSearch },
-  { name: "Customers",    href: "/customers",  icon: Users },
-  { name: "NGO Partners", href: "/ngo",        icon: HeartHandshake },
-  { name: "Analytics",    href: "/analytics",  icon: BarChart3 },
+  { name: "Dashboard",       href: "/",              icon: LayoutDashboard },
+  { name: "Inventory",       href: "/inventory",     icon: PackageSearch },
+  { name: "Manager Actions", href: "/actions",       icon: ClipboardList },
+  { name: "AI Insights",     href: "/ai-insights",   icon: Brain },
+  { name: "Notifications",   href: "/notifications", icon: Bell },
+  { name: "Reports",         href: "/reports",       icon: FileText },
+  { name: "Customers",       href: "/customers",     icon: Users },
+  { name: "NGO Partners",    href: "/ngo",           icon: HeartHandshake },
+  { name: "Settings",        href: "/settings",      icon: Settings },
 ];
 
 export function Sidebar() {

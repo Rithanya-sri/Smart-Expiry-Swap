@@ -2,187 +2,284 @@
 import * as React from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatCard } from "@/components/ui/stat-card";
+import { StatCardSkeleton, ChartSkeleton } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/ui/empty-state";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs } from "@/components/ui/tabs";
 import { DispatchModal } from "@/components/dashboard/ngo-dispatch-modal";
-import { TrendAreaChart, CategoryPieChart } from "@/components/dashboard/expiry-charts";
-import { MOCK_INVENTORY, MOCK_ACTIVITIES } from "@/lib/mock-data";
-import { InventoryItem } from "@/types";
 import {
   PackageCheck, AlertOctagon, HeartHandshake, IndianRupee,
-  Truck, Calendar, Activity, CheckCircle2,
+  Truck, Calendar, Activity, CheckCircle2, Leaf, Package, Archive, Users,
 } from "lucide-react";
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, BarChart, Bar, Legend,
+} from "recharts";
+
+interface Stats {
+  totalProducts: number;
+  safeProducts: number;
+  nearExpiryProducts: number;
+  criticalProducts: number;
+  estimatedRevenueRecovered: number;
+  productsDonated: number;
+  wastePrevented: number;
+  activeNGOPartners: number;
+}
+
+interface ChartData {
+  categoryBreakdown: { name: string; value: number; color: string }[];
+  inventoryStatus: { name: string; value: number; color: string }[];
+  recoveryActions: { name: string; value: number }[];
+  monthlyWasteReduction: { month: string; rescued: number; waste: number; valueSaved: number }[];
+}
+
+const TOOLTIP_STYLE = {
+  backgroundColor: "#0f172a", borderColor: "#334155", borderRadius: "0.75rem",
+  color: "#f8fafc", fontSize: "12px", boxShadow: "0 10px 25px -5px rgba(0,0,0,0.5)",
+};
+
+const RECOVERY_COLORS = ["#10b981","#f59e0b","#3b82f6","#8b5cf6","#06b6d4","#f43f5e","#64748b"];
 
 export default function DashboardPage() {
-  const [items, setItems] = React.useState<InventoryItem[]>(MOCK_INVENTORY);
-  const [dispatchItem, setDispatchItem] = React.useState<InventoryItem | null>(null);
+  const [stats, setStats] = React.useState<Stats | null>(null);
+  const [charts, setCharts] = React.useState<ChartData | null>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
   const [activeTab, setActiveTab] = React.useState("urgent");
+  const [activities] = React.useState([
+    { id: "1", title: "140 Milk Cartons dispatched to Metro Harvest", timestamp: "12 mins ago", actor: "Dispatch System", type: "dispatch" },
+    { id: "2", title: "Critical Expiry Alert: Fresh Salmon", timestamp: "1 hour ago", actor: "Smart Tracker", type: "alert" },
+    { id: "3", title: "AI Recovery Plan generated for 5 items", timestamp: "2 hours ago", actor: "AI Engine", type: "ai" },
+    { id: "4", title: "60 Sourdough Loaves transferred to Eastside Hub", timestamp: "4 hours ago", actor: "Manager Portal", type: "transfer" },
+    { id: "5", title: "NGO Hope Shelter confirmed pickup", timestamp: "5 hours ago", actor: "NGO System", type: "ngo" },
+  ]);
 
-  const criticalItems = items.filter((i) => i.status === "critical" && !i.isDispatched);
-  const dispatchedItems = items.filter((i) => i.isDispatched);
+  const fetchData = React.useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [statsRes, chartsRes] = await Promise.all([
+        fetch("/api/dashboard/stats"),
+        fetch("/api/dashboard/charts"),
+      ]);
+      const statsJson = await statsRes.json();
+      const chartsJson = await chartsRes.json();
+      if (statsJson.success) setStats(statsJson.data);
+      if (chartsJson.success) setCharts(chartsJson.data);
+    } catch (e: any) {
+      setError(e.message || "Failed to load dashboard data.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const tableItems = activeTab === "urgent" ? criticalItems : dispatchedItems;
+  React.useEffect(() => { fetchData(); }, [fetchData]);
 
-  const handleDispatch = (itemId: string, ngoName: string) => {
-    setItems((prev) =>
-      prev.map((i) => i.id === itemId ? { ...i, isDispatched: true, rescuedByNGO: ngoName } : i)
-    );
-  };
+  const statCards = stats ? [
+    { title: "Total Products", value: stats.totalProducts.toString(), change: "4 branches", trend: "up" as const, icon: <Package className="h-4 w-4" />, color: "blue" as const },
+    { title: "Safe Products", value: stats.safeProducts.toString(), change: `${Math.round(stats.safeProducts / stats.totalProducts * 100)}% of stock`, trend: "up" as const, icon: <CheckCircle2 className="h-4 w-4" />, color: "emerald" as const },
+    { title: "Near Expiry", value: stats.nearExpiryProducts.toString(), change: "≤ 7 days", trend: "down" as const, icon: <AlertOctagon className="h-4 w-4" />, color: "amber" as const },
+    { title: "Critical Items", value: stats.criticalProducts.toString(), change: "Need action now", trend: "down" as const, icon: <AlertOctagon className="h-4 w-4" />, color: "rose" as const },
+    { title: "Revenue Recovered", value: `₹${stats.estimatedRevenueRecovered.toLocaleString("en-IN")}`, change: "+18% this month", trend: "up" as const, icon: <IndianRupee className="h-4 w-4" />, color: "emerald" as const },
+    { title: "Products Donated", value: stats.productsDonated.toString(), change: "To NGO partners", trend: "up" as const, icon: <HeartHandshake className="h-4 w-4" />, color: "violet" as const },
+    { title: "Waste Prevented", value: `₹${stats.wastePrevented.toLocaleString("en-IN")}`, change: "Est. savings", trend: "up" as const, icon: <Leaf className="h-4 w-4" />, color: "emerald" as const },
+    { title: "NGO Partners", value: stats.activeNGOPartners.toString(), change: "Active", trend: "up" as const, icon: <Users className="h-4 w-4" />, color: "amber" as const },
+  ] : [];
+
+  if (error) return (
+    <div className="space-y-6">
+      <PageHeader title="Dashboard" description="Overview of expiring stock, rescue operations, and key metrics." />
+      <ErrorState title="Failed to load dashboard" message={error} onRetry={fetchData} />
+    </div>
+  );
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Dashboard"
-        description="Overview of expiring stock, rescue operations, and key metrics."
-      />
+      <PageHeader title="Dashboard" description="Live overview of expiring stock, rescue operations, and key metrics." />
 
-      {/* Stats */}
+      {/* Stats — 8 cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Rescued This Month" value="4,850 kg" change="+18%" trend="up"
-          subtitle="from last month" icon={<PackageCheck className="h-4 w-4" />} color="emerald" />
-        <StatCard title="At-Risk Batches" value={`${criticalItems.length} Items`} change="Critical" trend="down"
-          subtitle="need action now" icon={<AlertOctagon className="h-4 w-4" />} color="rose" />
-        <StatCard title="NGO Partners" value="14 Active" change="+3 new" trend="up"
-          subtitle="verified partners" icon={<HeartHandshake className="h-4 w-4" />} color="amber" />
-        <StatCard title="Value Saved" value="₹51,800" change="+24%" trend="up"
-          subtitle="prevented write-off" icon={<IndianRupee className="h-4 w-4" />} color="blue" />
+        {loading
+          ? Array.from({ length: 8 }).map((_, i) => <StatCardSkeleton key={i} />)
+          : statCards.map((s) => (
+            <StatCard key={s.title} title={s.title} value={s.value} change={s.change}
+              trend={s.trend} subtitle="" icon={s.icon} color={s.color} />
+          ))
+        }
       </div>
 
-      {/* Charts row */}
+      {/* Charts row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Monthly Waste Reduction */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Rescue vs Waste Trend</CardTitle>
-            <p className="text-xs text-slate-500 mt-0.5">Monthly items rescued (kg) compared to disposed waste.</p>
+            <CardTitle>Monthly Waste Reduction</CardTitle>
+            <p className="text-xs text-slate-500 mt-0.5">Items rescued (kg) vs disposed waste over 6 months.</p>
           </CardHeader>
           <CardContent>
-            <TrendAreaChart />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Category Breakdown</CardTitle>
-            <p className="text-xs text-slate-500 mt-0.5">Volume by product type near expiry.</p>
-          </CardHeader>
-          <CardContent>
-            <CategoryPieChart />
-            <div className="mt-4 space-y-2">
-              {[
-                { name: "Fresh Produce", pct: "38%", color: "bg-emerald-500" },
-                { name: "Dairy & Eggs",  pct: "24%", color: "bg-blue-500" },
-                { name: "Bakery & Deli", pct: "18%", color: "bg-amber-500" },
-              ].map((r) => (
-                <div key={r.name} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${r.color}`} />
-                    <span className="text-slate-400">{r.name}</span>
-                  </div>
-                  <span className="font-semibold text-slate-300">{r.pct}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Bottom row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Expiry Alert table */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="border-b border-slate-800 pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle>
-                <AlertOctagon className="h-4 w-4 text-rose-400" />
-                Expiry Alerts
-              </CardTitle>
-            </div>
-            <Tabs
-              tabs={[
-                { id: "urgent", label: "Urgent (<3 days)", count: criticalItems.length },
-                { id: "done", label: "Dispatched", count: dispatchedItems.length },
-              ]}
-              activeTab={activeTab}
-              onChange={setActiveTab}
-              className="mt-3"
-            />
-          </CardHeader>
-          <CardContent className="p-0">
-            {tableItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-slate-600">
-                <CheckCircle2 className="h-8 w-8 mb-2 text-emerald-700" />
-                <p className="text-sm">All clear — no pending items.</p>
+            {loading || !charts ? <ChartSkeleton /> : (
+              <div className="h-[280px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={charts.monthlyWasteReduction} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="rescuedGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="wasteGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                    <XAxis dataKey="month" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} />
+                    <Area type="monotone" dataKey="rescued" name="Rescued (kg)" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#rescuedGrad)" />
+                    <Area type="monotone" dataKey="waste" name="Waste (kg)" stroke="#f43f5e" strokeWidth={2} fillOpacity={1} fill="url(#wasteGrad)" />
+                  </AreaChart>
+                </ResponsiveContainer>
               </div>
-            ) : (
-              <table className="w-full text-xs">
-                <thead className="border-b border-slate-800">
-                  <tr className="text-slate-500 uppercase tracking-wide text-[10px]">
-                    <th className="text-left py-2.5 px-5">Item</th>
-                    <th className="text-left py-2.5 px-3">Qty</th>
-                    <th className="text-left py-2.5 px-3">Expiry</th>
-                    <th className="text-right py-2.5 px-5">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60">
-                  {tableItems.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-800/30 transition-colors">
-                      <td className="py-3 px-5">
-                        <p className="font-medium text-slate-200">{item.name}</p>
-                        <p className="text-[10px] text-slate-600 font-mono">{item.sku}</p>
-                      </td>
-                      <td className="py-3 px-3 text-slate-300">{item.quantity} {item.unit}</td>
-                      <td className="py-3 px-3">
-                        <Badge variant={item.status}>
-                          <Calendar className="h-3 w-3" />
-                          {item.expiryDate}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-5 text-right">
-                        {item.isDispatched ? (
-                          <span className="text-[11px] text-emerald-400">✓ {item.rescuedByNGO}</span>
-                        ) : (
-                          <Button variant="primary" size="sm" onClick={() => setDispatchItem(item)}>
-                            <Truck className="h-3.5 w-3.5" /> Dispatch
-                          </Button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             )}
           </CardContent>
         </Card>
 
-        {/* Activity Feed */}
+        {/* Products by Category */}
         <Card>
-          <CardHeader className="border-b border-slate-800 pb-3">
-            <CardTitle>
-              <Activity className="h-4 w-4 text-emerald-400" />
-              Recent Activity
-            </CardTitle>
+          <CardHeader>
+            <CardTitle>Products by Category</CardTitle>
+            <p className="text-xs text-slate-500 mt-0.5">Volume by product type.</p>
           </CardHeader>
-          <CardContent className="pt-3 space-y-3">
-            {MOCK_ACTIVITIES.map((act) => (
-              <div key={act.id} className="flex gap-3 pb-3 border-b border-slate-800/50 last:border-0 last:pb-0">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
-                <div>
-                  <p className="text-xs font-medium text-slate-200 leading-snug">{act.title}</p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">{act.timestamp} · {act.actor}</p>
+          <CardContent>
+            {loading || !charts ? <ChartSkeleton height={240} /> : (
+              <>
+                <div className="h-[200px] w-full flex items-center justify-center relative">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={charts.categoryBreakdown} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={4} dataKey="value">
+                        {charts.categoryBreakdown.map((entry, i) => (
+                          <Cell key={i} fill={entry.color} stroke="#0f172a" strokeWidth={2} />
+                        ))}
+                      </Pie>
+                      <Tooltip contentStyle={TOOLTIP_STYLE} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute flex flex-col items-center pointer-events-none">
+                    <span className="text-lg font-extrabold text-slate-100">{stats?.totalProducts}</span>
+                    <span className="text-[10px] text-slate-400">Items</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+                <div className="mt-3 space-y-1.5">
+                  {charts.categoryBreakdown.slice(0, 4).map((c) => (
+                    <div key={c.name} className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                        <span className="text-slate-400 truncate max-w-[120px]">{c.name}</span>
+                      </div>
+                      <span className="font-semibold text-slate-300">{c.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
 
-      <DispatchModal
-        item={dispatchItem}
-        isOpen={!!dispatchItem}
-        onClose={() => setDispatchItem(null)}
-        onSuccess={handleDispatch}
-      />
+      {/* Charts row 2 */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Recovery Actions Distribution */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Recovery Actions Distribution</CardTitle>
+            <p className="text-xs text-slate-500 mt-0.5">How products are being recovered across the pipeline.</p>
+          </CardHeader>
+          <CardContent>
+            {loading || !charts ? <ChartSkeleton /> : (
+              <div className="h-[240px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={charts.recoveryActions} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                    <XAxis dataKey="name" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} />
+                    <Bar dataKey="value" name="Products" radius={[6, 6, 0, 0]}>
+                      {charts.recoveryActions.map((_, i) => (
+                        <Cell key={i} fill={RECOVERY_COLORS[i % RECOVERY_COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Inventory Status */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Inventory Status</CardTitle>
+            <p className="text-xs text-slate-500 mt-0.5">Real-time status breakdown.</p>
+          </CardHeader>
+          <CardContent>
+            {loading || !charts ? <ChartSkeleton height={200} /> : (
+              <>
+                <div className="h-[200px] w-full flex items-center justify-center relative">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={charts.inventoryStatus} cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={4} dataKey="value">
+                        {charts.inventoryStatus.map((entry, i) => (
+                          <Cell key={i} fill={entry.color} stroke="#0f172a" strokeWidth={2} />
+                        ))}
+                      </Pie>
+                      <Tooltip contentStyle={TOOLTIP_STYLE} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {charts.inventoryStatus.map((s) => (
+                    <div key={s.name} className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
+                        <span className="text-slate-400">{s.name}</span>
+                      </div>
+                      <span className="font-semibold text-slate-300">{s.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Activity Feed */}
+      <Card>
+        <CardHeader className="border-b border-slate-800 pb-3">
+          <CardTitle>
+            <Activity className="h-4 w-4 text-emerald-400" />
+            Recent Activity
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-3 space-y-0 divide-y divide-slate-800/40">
+          {activities.map((act) => (
+            <div key={act.id} className="flex gap-3 py-3">
+              <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${
+                act.type === "alert" ? "bg-rose-500" :
+                act.type === "ai" ? "bg-violet-500" :
+                act.type === "ngo" ? "bg-amber-500" : "bg-emerald-500"
+              }`} />
+              <div>
+                <p className="text-xs font-medium text-slate-200 leading-snug">{act.title}</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">{act.timestamp} · {act.actor}</p>
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
     </div>
   );
 }
