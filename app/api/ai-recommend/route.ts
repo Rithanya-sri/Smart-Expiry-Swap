@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getProductRecommendation, ProductInput } from "@/lib/gemini";
+import { getProductRecommendation as getGeminiRecommendation, ProductInput } from "@/lib/gemini";
+import { getProductRecommendation as getRuleRecommendation } from "@/lib/recovery-engine";
 
 export async function POST(request: Request) {
   try {
@@ -19,7 +20,18 @@ export async function POST(request: Request) {
       );
     }
 
-    const recommendation = await getProductRecommendation(body);
+    let recommendation;
+
+    if (process.env.GEMINI_API_KEY) {
+      try {
+        recommendation = await getGeminiRecommendation(body);
+      } catch (geminiError: any) {
+        console.warn("Gemini API failed or key invalid, falling back to rule engine:", geminiError.message);
+        recommendation = getRuleRecommendation(body);
+      }
+    } else {
+      recommendation = getRuleRecommendation(body);
+    }
 
     return NextResponse.json(
       { success: true, data: recommendation },
@@ -27,31 +39,6 @@ export async function POST(request: Request) {
     );
   } catch (error: any) {
     console.error("AI Recommendation Error:", error);
-
-    // Check for API key issues
-    if (
-      error.message?.includes("GEMINI_API_KEY") ||
-      error.message?.includes("API_KEY_INVALID")
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Invalid or missing Gemini API key. Check your .env.local file.",
-        },
-        { status: 500 }
-      );
-    }
-
-    // JSON parsing error from Gemini response
-    if (error instanceof SyntaxError) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "AI returned an unexpected response format. Please try again.",
-        },
-        { status: 502 }
-      );
-    }
 
     return NextResponse.json(
       { success: false, error: error.message || "Failed to get AI recommendation." },

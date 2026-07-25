@@ -2,12 +2,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const apiKey = process.env.GEMINI_API_KEY;
 
-if (!apiKey) {
-  throw new Error("GEMINI_API_KEY is not defined in .env.local");
-}
-
-const genAI = new GoogleGenerativeAI(apiKey);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+const model = genAI ? genAI.getGenerativeModel({ model: "gemini-1.5-flash" }) : null;
 
 export interface ProductInput {
   name: string;
@@ -86,6 +82,10 @@ Rules:
 - recoveryScore should reflect how much revenue can realistically be recovered given the time left.
 - estimatedRevenueRecovered should be calculated from stock × price × a realistic recovery factor.
 `;
+
+  if (!model) {
+    throw new Error("Gemini model is not initialized (missing API key).");
+  }
 
   const result = await model.generateContent(prompt);
   const text = result.response.text().trim();

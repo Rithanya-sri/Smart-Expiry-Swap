@@ -8,7 +8,7 @@ import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch"; // We might need to mock this if it doesn't exist, I'll use a checkbox styling for now
 import {
-  Building2, Store, Bell, Brain, User, Save, ShieldCheck, Mail, Smartphone,
+  Building2, Store, Bell, Brain, User, Save, Mail, AlertOctagon, HeartHandshake
 } from "lucide-react";
 
 export default function SettingsPage() {
